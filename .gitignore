@@ -1,0 +1,19 @@
+# Build artifacts
+build/
+*.o
+
+# Docker
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+
+# Secrets
+*.pem
+*.key
+*.crt
+.env

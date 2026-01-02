@@ -1,0 +1,1 @@
+docker run -it --net ot_net --ip 172.30.0.3 --name client iec104-client

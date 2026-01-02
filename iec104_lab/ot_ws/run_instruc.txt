@@ -1,0 +1,7 @@
+docker run -d --name ot_ws \
+  --network ot_net --ip 172.30.0.4 \
+  -v "$PWD/projects:/opt/ot/projects" \
+  -v "$PWD/pcaps:/opt/ot/pcaps" \
+  ot-ws:latest
+
+docker exec -it ot_ws bash

@@ -1,0 +1,3 @@
+./gradlew build -x asciidoctor
+./gradlew jar
+java -cp build/libs/j60870-1.7.2.jar:cli-app/build/classes/java/main org.openmuc.j60870.app.SampleServer 

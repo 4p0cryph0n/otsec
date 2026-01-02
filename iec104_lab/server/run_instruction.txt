@@ -1,0 +1,3 @@
+docker build -t iec104-server:latest .
+
+docker run -it --net ot_net --ip 172.30.0.2 --name server iec104-server
