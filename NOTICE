@@ -1,0 +1,9 @@
+This project includes and modifies software from the following projects:
+
+- j60870 (OpenMUC / Fraunhofer ISE)
+  https://www.openmuc.org
+
+- lib60870
+  https://github.com/mz-automation/lib60870
+
+All original copyrights remain with their respective authors.

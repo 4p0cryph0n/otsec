@@ -1,19 +1,26 @@
 /*
- * Copyright 2014-2024 Fraunhofer ISE
+ * MODIFICATION NOTICE
+ * -------------------
  *
- * This file is part of j60870.
- * For more information visit http://www.openmuc.org
+ * This file is a modified version of the original SampleServer provided by
+ * the j60870 project (Fraunhofer ISE / OpenMUC). This file has been modified by 4p0cryph0n.
  *
- * j60870 is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Modifications have been made for the purpose of:
+ *   - Simulating a realistic IEC 60870-5-104 outstation (RTU)
+ *   - Implementing Select-Before-Operate (SBO) control logic
+ *   - Modeling breaker state changes and spontaneous indications (M_SP_NA_1)
+ *   - Supporting hands-on learning and defensive security research
  *
- * j60870 is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * These changes are intended solely for local lab use, education,
+ * and OT/ICS security research. No real-world infrastructure is targeted
+ * or controlled by this software.
  *
+ * Original project: https://www.openmuc.org
+ *
+ * The original license terms (GNU GPL v3 or later) apply to this file
+ * and to all derivative works.
  */
+
 package org.openmuc.j60870.app;
 
 import org.openmuc.j60870.*;
