@@ -1,3 +1,19 @@
+/*
+ * Author: 4p0cryph0n
+ *
+ * This file is part of an educational OT/ICS laboratory for studying
+ * IEC 60870-5-104 attack vectors
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This software is provided for educational and defensive security
+ * research purposes only.
+ */
+
+
 #include "cs104_connection.h"
 #include "hal_thread.h"
 #include "hal_time.h"

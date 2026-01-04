@@ -1,23 +1,24 @@
 /*
- * Copyright 2014-2024 Fraunhofer ISE
+ * MODIFICATION NOTICE
+ * -------------------
  *
- * This file is part of j60870.
- * For more information visit http://www.openmuc.org
+ * This file is a modified version of the original ConsoleClient provided by
+ * the j60870 project (Fraunhofer ISE / OpenMUC). This file has been modified by 4p0cryph0n.
  *
- * j60870 is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
+ * Modifications have been made for the purpose of:
+ *   - Simulating a realistic IEC 60870-5-104 client (master)
+ *   - Compatible with breakers added to SampleServer
  *
- * j60870 is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+ * These changes are intended solely for local lab use, education,
+ * and OT/ICS security research. No real-world infrastructure is targeted
+ * or controlled by this software.
  *
- * You should have received a copy of the GNU General Public License
- * along with j60870.  If not, see <http://www.gnu.org/licenses/>.
+ * Original project: https://www.openmuc.org
  *
+ * The original license terms (GNU GPL v3 or later) apply to this file
+ * and to all derivative works.
  */
+
 package org.openmuc.j60870.app;
 
 import java.io.IOException;
@@ -29,25 +30,9 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
-import org.openmuc.j60870.ASdu;
-import org.openmuc.j60870.CauseOfTransmission;
-import org.openmuc.j60870.ClientConnectionBuilder;
-import org.openmuc.j60870.Connection;
-import org.openmuc.j60870.ConnectionEventListener;
-import org.openmuc.j60870.ie.IeQualifierOfCounterInterrogation;
-import org.openmuc.j60870.ie.IeQualifierOfInterrogation;
-import org.openmuc.j60870.ie.IeSingleCommand;
-import org.openmuc.j60870.ie.IeTime56;
-import org.openmuc.j60870.internal.cli.Action;
-import org.openmuc.j60870.internal.cli.ActionException;
-import org.openmuc.j60870.internal.cli.ActionListener;
-import org.openmuc.j60870.internal.cli.ActionProcessor;
-import org.openmuc.j60870.internal.cli.CliParameter;
-import org.openmuc.j60870.internal.cli.CliParameterBuilder;
-import org.openmuc.j60870.internal.cli.CliParseException;
-import org.openmuc.j60870.internal.cli.CliParser;
-import org.openmuc.j60870.internal.cli.IntCliParameter;
-import org.openmuc.j60870.internal.cli.StringCliParameter;
+import org.openmuc.j60870.*;
+import org.openmuc.j60870.ie.*;
+import org.openmuc.j60870.internal.cli.*;
 
 public final class ConsoleClient {
 
@@ -63,24 +48,32 @@ public final class ConsoleClient {
             .setDescription("The IP/domain address of the server you want to access.")
             .setMandatory()
             .buildStringParameter("host");
+
     private static final IntCliParameter portParam = new CliParameterBuilder("-p")
             .setDescription("The port to connect to.")
             .buildIntParameter("port", 2404);
+
     private static final IntCliParameter commonAddrParam = new CliParameterBuilder("-ca")
-            .setDescription("The address of the target station or the broad cast address.")
-            .buildIntParameter("common_address", 1);
+            .setDescription("The address of the target station.")
+            .buildIntParameter("common_address", 65535);
+
     private static final IntCliParameter startDtRetries = new CliParameterBuilder("-r")
             .setDescription("Send start DT retries.")
             .buildIntParameter("start_DT_retries", 1);
+
     private static final IntCliParameter connectionTimeout = new CliParameterBuilder("-ct")
             .setDescription("Connection timeout t0.")
             .buildIntParameter("connection_timeout", 20_000);
+
     private static final IntCliParameter messageFragmentTimeout = new CliParameterBuilder("-mft")
             .setDescription("Message fragment timeout.")
             .buildIntParameter("message_fragment_timeout", 5_000);
 
     private static Connection connection;
-    private static final ActionProcessor actionProcessor = new ActionProcessor(new ActionExecutor());
+    private static final ActionProcessor actionProcessor =
+            new ActionProcessor(new ActionExecutor());
+
+    /* ---------------- Connection events ---------------- */
 
     private static class ClientEventListener implements ConnectionEventListener {
 
@@ -91,175 +84,189 @@ public final class ConsoleClient {
 
         @Override
         public void connectionClosed(Connection connection, IOException e) {
-            log("Received connection closed signal. Reason: ");
-            if (!e.getMessage().isEmpty()) {
-                log(e.getMessage());
-            }
-            else {
-                log("unknown");
-            }
+            log("Connection closed: ",
+                    e.getMessage() == null ? "unknown" : e.getMessage());
             actionProcessor.close();
         }
 
         @Override
         public void dataTransferStateChanged(Connection connection, boolean stopped) {
-            String dtState = "started";
-            if (stopped) {
-                dtState = "stopped";
-            }
-            log("Data transfer was ", dtState);
+            log("Data transfer ", stopped ? "stopped" : "started");
         }
-
     }
 
+    /* ---------------- Action executor ---------------- */
+
     private static class ActionExecutor implements ActionListener {
+
         @Override
         public void actionCalled(String actionKey) throws ActionException {
             try {
                 switch (actionKey) {
+
                 case INTERROGATION_ACTION_KEY:
-                    log("** Sending general interrogation command.");
-                    connection.interrogation(commonAddrParam.getValue(), CauseOfTransmission.ACTIVATION,
-                            new IeQualifierOfInterrogation(20));
+                    log("** Sending general interrogation");
+                    connection.interrogation(
+                            commonAddrParam.getValue(),
+                            CauseOfTransmission.ACTIVATION,
+                            new IeQualifierOfInterrogation(20)
+                    );
                     break;
+
                 case COUNTER_INTERROGATION_ACTION_KEY:
-                    log("Enter the freeze action: 0=read, 1=counter freeze without reset, 2=counter freeze with reset, 3=counter reset");
-                    int reference;
-                    try {
-                        reference = getReference();
-                    } catch (NumberFormatException e) {
-                        log("Input was not a integer between 0-3.");
-                        break;
-                    }
-                    log("** Sending counter interrogation command.");
-                    connection.counterInterrogation(commonAddrParam.getValue(), CauseOfTransmission.ACTIVATION,
-                            new IeQualifierOfCounterInterrogation(5, reference));
+                    log("** Sending counter interrogation");
+                    connection.counterInterrogation(
+                            commonAddrParam.getValue(),
+                            CauseOfTransmission.ACTIVATION,
+                            new IeQualifierOfCounterInterrogation(5, 0)
+                    );
                     break;
+
                 case CLOCK_SYNC_ACTION_KEY:
-                    log("** Sending synchronize clocks command.");
-                    connection.synchronizeClocks(commonAddrParam.getValue(), new IeTime56(System.currentTimeMillis()));
+                    log("** Sending clock sync");
+                    connection.synchronizeClocks(
+                            commonAddrParam.getValue(),
+                            new IeTime56(System.currentTimeMillis())
+                    );
                     break;
-                case SINGLE_COMMAND_SELECT:
-                    log("** Sending single command select.");
-                    connection.singleCommand(commonAddrParam.getValue(), CauseOfTransmission.ACTIVATION, 5000,
-                            new IeSingleCommand(true, 0, true));
+
+                case SINGLE_COMMAND_SELECT: {
+                    int ioa = readIoa();
+                    boolean desired = readState();
+
+                    log("** SELECT breaker IOA=" + ioa +
+                            " state=" + (desired ? "CLOSE" : "OPEN"));
+
+                    connection.singleCommand(
+                            commonAddrParam.getValue(),
+                            CauseOfTransmission.ACTIVATION,
+                            ioa,
+                            new IeSingleCommand(desired, 0, true)
+                    );
                     break;
-                case SINGLE_COMMAND_EXECUTE:
-                    log("** Sending single command execute.");
-                    connection.singleCommand(commonAddrParam.getValue(), CauseOfTransmission.ACTIVATION, 5000,
-                            new IeSingleCommand(false, 0, false));
+                }
+
+                case SINGLE_COMMAND_EXECUTE: {
+                    int ioa = readIoa();
+                    boolean desired = readState();
+
+                    log("** EXECUTE breaker IOA=" + ioa +
+                            " state=" + (desired ? "CLOSE" : "OPEN"));
+
+                    connection.singleCommand(
+                            commonAddrParam.getValue(),
+                            CauseOfTransmission.ACTIVATION,
+                            ioa,
+                            new IeSingleCommand(desired, 0, false)
+                    );
                     break;
+                }
+
                 case SEND_STOPDT:
-                    log("** Sending STOPDT act.");
                     connection.stopDataTransfer();
                     break;
+
                 case SEND_STARTDT:
-                    log("** Sending STARTDT act.");
                     connection.startDataTransfer();
                     break;
+
                 default:
                     break;
                 }
-            } catch (Exception e) {
+            }
+            catch (Exception e) {
                 throw new ActionException(e);
             }
         }
 
-        private int getReference() throws IOException, NumberFormatException {
-            int reference;
-            String referenceString = actionProcessor.getReader().readLine();
-            reference = Integer.parseInt(referenceString);
-            if (reference < 0 || reference > 3) {
-                throw new NumberFormatException();
-            }
-            return reference;
+        private int readIoa() throws IOException {
+            log("Enter breaker IOA (e.g. 1001, 1002, 1003):");
+            return Integer.parseInt(actionProcessor.getReader().readLine());
+        }
+
+        private boolean readState() throws IOException {
+            log("Enter state (1 = CLOSE / ON, 0 = OPEN / OFF):");
+            return actionProcessor.getReader().readLine().trim().equals("1");
         }
 
         @Override
         public void quit() {
-            log("** Closing connection.");
             connection.close();
         }
     }
 
+    /* ---------------- Main ---------------- */
+
     public static void main(String[] args) {
+
         List<CliParameter> cliParameters = new ArrayList<>();
         cliParameters.add(hostParam);
         cliParameters.add(portParam);
         cliParameters.add(commonAddrParam);
 
-        CliParser cliParser = new CliParser("j60870-console-client",
-                "A client/master application to access IEC 60870-5-104 servers/slaves.");
+        CliParser cliParser = new CliParser(
+                "j60870-console-client",
+                "IEC 60870-5-104 interactive console client"
+        );
         cliParser.addParameters(cliParameters);
 
         try {
             cliParser.parseArguments(args);
-        } catch (CliParseException e1) {
-            System.err.println("Error parsing command line parameters: " + e1.getMessage());
+        }
+        catch (CliParseException e) {
             log(cliParser.getUsageString());
-            System.exit(1);
+            return;
         }
 
         InetAddress address;
         try {
             address = InetAddress.getByName(hostParam.getValue());
-        } catch (UnknownHostException e) {
-            log("Unknown host: ", hostParam.getValue());
+        }
+        catch (UnknownHostException e) {
+            log("Unknown host");
             return;
         }
 
-        ClientConnectionBuilder clientConnectionBuilder = new ClientConnectionBuilder(address)
-                .setMessageFragmentTimeout(messageFragmentTimeout.getValue())
-                .setConnectionTimeout(connectionTimeout.getValue())
-                .setPort(portParam.getValue())
-                .setConnectionEventListener(new ClientEventListener());
+        ClientConnectionBuilder builder =
+                new ClientConnectionBuilder(address)
+                        .setPort(portParam.getValue())
+                        .setConnectionTimeout(connectionTimeout.getValue())
+                        .setMessageFragmentTimeout(messageFragmentTimeout.getValue())
+                        .setConnectionEventListener(new ClientEventListener());
 
         try {
-            connection = clientConnectionBuilder.build();
-        } catch (IOException e) {
-            log("Unable to connect to remote host: ", hostParam.getValue(), ".");
+            connection = builder.build();
+        }
+        catch (IOException e) {
+            log("Unable to connect");
             return;
         }
 
-        Runtime.getRuntime().addShutdownHook(new Thread() {
-            @Override
-            public void run() {
-                connection.close();
-            }
-        });
-
-        boolean connected = false;
         int retries = startDtRetries.getValue();
-        int i = 1;
-
-        while (!connected && i <= retries) {
+        for (int i = 1; i <= retries; i++) {
             try {
-                log("Send start DT. Try no. " + i);
+                log("Send STARTDT (try " + i + ")");
                 connection.startDataTransfer();
-            } catch (InterruptedIOException e2) {
+                break;
+            }
+            catch (InterruptedIOException e) {
                 if (i == retries) {
-                    log("Starting data transfer timed out. Closing connection. Because of no more retries.");
                     connection.close();
                     return;
                 }
-                else {
-                    log("Got Timeout.class Next try.");
-                    ++i;
-                    continue;
-                }
-            } catch (IOException e) {
-                log("Connection closed for the following reason: ", e.getMessage());
+            }
+            catch (IOException e) {
                 return;
             }
-            connected = true;
         }
-        log("successfully connected");
+
+        log("Successfully connected");
 
         actionProcessor.addAction(new Action(INTERROGATION_ACTION_KEY, "interrogation C_IC_NA_1"));
         actionProcessor.addAction(new Action(COUNTER_INTERROGATION_ACTION_KEY, "counter interrogation C_CI_NA_1"));
         actionProcessor.addAction(new Action(CLOCK_SYNC_ACTION_KEY, "synchronize clocks C_CS_NA_1"));
-        actionProcessor.addAction(new Action(SINGLE_COMMAND_SELECT, "single command select C_SC_NA_1"));
-        actionProcessor.addAction(new Action(SINGLE_COMMAND_EXECUTE, "single command execute C_SC_NA_1"));
+        actionProcessor.addAction(new Action(SINGLE_COMMAND_SELECT, "single command SELECT (SBO)"));
+        actionProcessor.addAction(new Action(SINGLE_COMMAND_EXECUTE, "single command EXECUTE (SBO)"));
         actionProcessor.addAction(new Action(SEND_STOPDT, "STOPDT act"));
         actionProcessor.addAction(new Action(SEND_STARTDT, "STARTDT act"));
 
@@ -268,16 +275,8 @@ public final class ConsoleClient {
 
     private static void log(String... strings) {
         String time = new SimpleDateFormat("yyyy.MM.dd HH:mm:ss.SSS ").format(new Date());
-        println(time, strings);
-    }
-
-    private static void println(String string, String... strings) {
-        StringBuilder sb = new StringBuilder();
-        sb.append(string);
-        for (String s : strings) {
-            sb.append(s);
-        }
+        StringBuilder sb = new StringBuilder(time);
+        for (String s : strings) sb.append(s);
         System.out.println(sb.toString());
     }
-
 }
