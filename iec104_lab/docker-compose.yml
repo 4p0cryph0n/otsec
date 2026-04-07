@@ -1,0 +1,58 @@
+services:
+  openmuc-server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: openmuc-server
+    networks:
+      ot_net:
+        ipv4_address: 172.30.0.2
+    command: >
+      java -cp build/libs/j60870-1.7.2.jar:cli-app/build/classes/java/main
+      org.openmuc.j60870.app.SampleServer
+      -a 172.30.0.2
+    restart: unless-stopped
+
+  openmuc-client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: openmuc-client
+    depends_on:
+      - openmuc-server
+    stdin_open: true
+    tty: true
+    entrypoint: java
+    command:
+      - -cp
+      - build/libs/j60870-1.7.2.jar:cli-app/build/classes/java/main
+      - org.openmuc.j60870.app.ConsoleClient
+      - -h
+      - 172.30.0.10
+      - -ca
+      - "65535"
+    networks:
+      ot_net:
+        ipv4_address: 172.30.0.3
+    restart: unless-stopped
+
+  ot_ws:
+    build:
+      context: ./ot_ws
+      dockerfile: Dockerfile
+    container_name: ot_ws
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./ot_ws/projects:/opt/ot/projects
+      - ./ot_ws/pcaps:/opt/ot/pcaps
+    command: >
+      bash -lc "echo '[ot-ws] Ready. Workspace: /opt/ot' && sleep infinity"
+    networks:
+      ot_net:
+        ipv4_address: 172.30.0.4
+    restart: unless-stopped
+
+networks:
+  ot_net:
+    external: true

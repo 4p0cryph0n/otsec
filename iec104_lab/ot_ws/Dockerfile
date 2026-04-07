@@ -28,7 +28,7 @@ WORKDIR /opt/lib60870/lib60870-C
  RUN mkdir -p build \
   && cd /opt/lib60870/lib60870-C \
   && mkdir -p build && cd build \
-  && cmake .. -DCMAKE_BUILD_TYPE=Release \
+  && cmake .. -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF -DBUILD_TESTS=OFF \
   && make -j"$(nproc)" \
   && make install \
   && ldconfig
